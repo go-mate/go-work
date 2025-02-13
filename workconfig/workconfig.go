@@ -87,8 +87,12 @@ func (wc *WorkspacesExecConfig) GetWorkspaces() Workspaces {
 	return wc.workspaces
 }
 
+func (wc *WorkspacesExecConfig) GetNewCommand() *osexec.ExecConfig {
+	return wc.execConfig.ShallowClone()
+}
+
 func (wc *WorkspacesExecConfig) GetSubCommand(path string) *osexec.ExecConfig {
-	return wc.execConfig.ShallowClone().WithPath(path)
+	return wc.GetNewCommand().WithPath(path)
 }
 
 func (wc *WorkspacesExecConfig) ForeachWorkRootRun(run func(workspace *Workspace, execConfig *osexec.ExecConfig) error) error {
