@@ -54,10 +54,10 @@ func (ws Workspaces) MustCheck() {
 
 type WorkspacesExecConfig struct {
 	workspaces Workspaces
-	execConfig *osexec.CommandConfig
+	execConfig *osexec.ExecConfig
 }
 
-func NewWorkspacesExecConfig(workspaces Workspaces, execConfig *osexec.CommandConfig) *WorkspacesExecConfig {
+func NewWorkspacesExecConfig(workspaces Workspaces, execConfig *osexec.ExecConfig) *WorkspacesExecConfig {
 	return &WorkspacesExecConfig{
 		workspaces: workspaces,
 		execConfig: execConfig,
@@ -69,15 +69,29 @@ func (wc *WorkspacesExecConfig) MustCheck() {
 	must.Nice(wc.execConfig)
 }
 
+func (wc *WorkspacesExecConfig) CollectSubprojectPaths() []string {
+	var paths []string
+	var mp = map[string]bool{}
+	for _, workspace := range wc.workspaces {
+		for _, project := range workspace.Projects {
+			if !mp[project] {
+				mp[project] = true
+				paths = append(paths, project)
+			}
+		}
+	}
+	return paths
+}
+
 func (wc *WorkspacesExecConfig) GetWorkspaces() Workspaces {
 	return wc.workspaces
 }
 
-func (wc *WorkspacesExecConfig) GetSubCommand(path string) *osexec.CommandConfig {
+func (wc *WorkspacesExecConfig) GetSubCommand(path string) *osexec.ExecConfig {
 	return wc.execConfig.ShallowClone().WithPath(path)
 }
 
-func (wc *WorkspacesExecConfig) ForeachWorkRootRun(run func(workspace *Workspace, command *osexec.CommandConfig) error) error {
+func (wc *WorkspacesExecConfig) ForeachWorkRootRun(run func(workspace *Workspace, execConfig *osexec.ExecConfig) error) error {
 	for idx, workspace := range wc.GetWorkspaces() {
 		processMessage := fmt.Sprintf("(%d/%d)", idx, len(wc.GetWorkspaces()))
 
@@ -94,12 +108,13 @@ func (wc *WorkspacesExecConfig) ForeachWorkRootRun(run func(workspace *Workspace
 	return nil
 }
 
-func (wc *WorkspacesExecConfig) ForeachProjectExec(run func(projectPath string, command *osexec.CommandConfig) error) error {
+func (wc *WorkspacesExecConfig) ForeachProjectExec(run func(projectPath string, execConfig *osexec.ExecConfig) error) error {
 	for idx, workspace := range wc.GetWorkspaces() {
 		for num, projectPath := range workspace.Projects {
 			process1Message := fmt.Sprintf("(%d/%d)", idx, len(wc.GetWorkspaces()))
 			process2Message := fmt.Sprintf("(%d/%d)", num, len(workspace.Projects))
-			zaplog.SUG.Debugln("run", process1Message, process2Message)
+
+			zaplog.SUG.Debugln("run", process1Message, process2Message, projectPath)
 
 			if err := run(projectPath, wc.GetSubCommand(projectPath)); err != nil {
 				return erero.Wro(err)

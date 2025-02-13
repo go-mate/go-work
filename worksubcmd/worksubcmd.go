@@ -65,8 +65,8 @@ func NewTideCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
 }
 
 func Sync(config *workconfig.WorkspacesExecConfig) error {
-	return config.ForeachWorkRootRun(func(workspace *workconfig.Workspace, command *osexec.CommandConfig) error {
-		data, err := command.Exec("go", "work", "sync")
+	return config.ForeachWorkRootRun(func(workspace *workconfig.Workspace, execConfig *osexec.ExecConfig) error {
+		data, err := execConfig.Exec("go", "work", "sync")
 		if err != nil {
 			return erero.Wro(err)
 		}
@@ -76,8 +76,8 @@ func Sync(config *workconfig.WorkspacesExecConfig) error {
 }
 
 func Tidy(config *workconfig.WorkspacesExecConfig) error {
-	return config.ForeachProjectExec(func(projectPath string, command *osexec.CommandConfig) error {
-		data, err := command.Exec("go", "mod", "tidy")
+	return config.ForeachProjectExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
+		data, err := execConfig.Exec("go", "mod", "tidy")
 		if err != nil {
 			return erero.Wro(err)
 		}
@@ -87,8 +87,8 @@ func Tidy(config *workconfig.WorkspacesExecConfig) error {
 }
 
 func Tide(config *workconfig.WorkspacesExecConfig) error {
-	return config.ForeachProjectExec(func(projectPath string, command *osexec.CommandConfig) error {
-		data, err := command.Exec("go", "mod", "tidy", "-e")
+	return config.ForeachProjectExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
+		data, err := execConfig.Exec("go", "mod", "tidy", "-e")
 		if err != nil {
 			return erero.Wro(err)
 		}
@@ -98,8 +98,8 @@ func Tide(config *workconfig.WorkspacesExecConfig) error {
 }
 
 func UpdateGoWorkVersion(config *workconfig.WorkspacesExecConfig, versionNum string) error {
-	return config.ForeachWorkRootRun(func(workspace *workconfig.Workspace, command *osexec.CommandConfig) error {
-		data, err := command.Exec("go", "work", "edit", "-go", versionNum)
+	return config.ForeachWorkRootRun(func(workspace *workconfig.Workspace, execConfig *osexec.ExecConfig) error {
+		data, err := execConfig.Exec("go", "work", "edit", "-go", versionNum)
 		if err != nil {
 			return erero.Wro(err)
 		}
@@ -109,8 +109,8 @@ func UpdateGoWorkVersion(config *workconfig.WorkspacesExecConfig, versionNum str
 }
 
 func UpdateGoModuleVersion(config *workconfig.WorkspacesExecConfig, versionNum string) error {
-	return config.ForeachProjectExec(func(projectPath string, command *osexec.CommandConfig) error {
-		data, err := command.Exec("go", "mod", "edit", "-go", versionNum)
+	return config.ForeachProjectExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
+		data, err := execConfig.Exec("go", "mod", "edit", "-go", versionNum)
 		if err != nil {
 			return erero.Wro(err)
 		}
