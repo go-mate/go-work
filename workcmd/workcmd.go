@@ -1,7 +1,7 @@
-package worksubcmd
+package workcmd
 
 import (
-	"github.com/go-mate/go-work/workconfig"
+	"github.com/go-mate/go-work/workcfg"
 	"github.com/spf13/cobra"
 	"github.com/yyle88/erero"
 	"github.com/yyle88/must"
@@ -9,7 +9,7 @@ import (
 	"github.com/yyle88/zaplog"
 )
 
-func NewWorkCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
+func NewWorkCmd(config *workcfg.WorksExec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "work",
 		Short: "go work -->>",
@@ -31,7 +31,7 @@ func NewWorkCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
 	return cmd
 }
 
-func NewModCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
+func NewModCmd(config *workcfg.WorksExec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mod",
 		Short: "go mod -->>",
@@ -42,7 +42,7 @@ func NewModCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
 	return cmd
 }
 
-func NewTidyCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
+func NewTidyCmd(config *workcfg.WorksExec) *cobra.Command {
 	return &cobra.Command{
 		Use:   "tidy",
 		Short: "go mod tidy",
@@ -53,7 +53,7 @@ func NewTidyCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
 	}
 }
 
-func NewTideCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
+func NewTideCmd(config *workcfg.WorksExec) *cobra.Command {
 	return &cobra.Command{
 		Use:   "tide",
 		Short: "go mod tidy -e",
@@ -64,8 +64,8 @@ func NewTideCmd(config *workconfig.WorkspacesExecConfig) *cobra.Command {
 	}
 }
 
-func Sync(config *workconfig.WorkspacesExecConfig) error {
-	return config.ForeachWorkRootRun(func(workspace *workconfig.Workspace, execConfig *osexec.ExecConfig) error {
+func Sync(config *workcfg.WorksExec) error {
+	return config.ForeachWorkRun(func(workspace *workcfg.Workspace, execConfig *osexec.ExecConfig) error {
 		data, err := execConfig.Exec("go", "work", "sync")
 		if err != nil {
 			return erero.Wro(err)
@@ -75,8 +75,8 @@ func Sync(config *workconfig.WorkspacesExecConfig) error {
 	})
 }
 
-func Tidy(config *workconfig.WorkspacesExecConfig) error {
-	return config.ForeachProjectExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
+func Tidy(config *workcfg.WorksExec) error {
+	return config.ForeachSubExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
 		data, err := execConfig.Exec("go", "mod", "tidy")
 		if err != nil {
 			return erero.Wro(err)
@@ -86,8 +86,8 @@ func Tidy(config *workconfig.WorkspacesExecConfig) error {
 	})
 }
 
-func Tide(config *workconfig.WorkspacesExecConfig) error {
-	return config.ForeachProjectExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
+func Tide(config *workcfg.WorksExec) error {
+	return config.ForeachSubExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
 		data, err := execConfig.Exec("go", "mod", "tidy", "-e")
 		if err != nil {
 			return erero.Wro(err)
@@ -97,8 +97,8 @@ func Tide(config *workconfig.WorkspacesExecConfig) error {
 	})
 }
 
-func UpdateGoWorkVersion(config *workconfig.WorkspacesExecConfig, versionNum string) error {
-	return config.ForeachWorkRootRun(func(workspace *workconfig.Workspace, execConfig *osexec.ExecConfig) error {
+func UpdateGoWorkVersion(config *workcfg.WorksExec, versionNum string) error {
+	return config.ForeachWorkRun(func(workspace *workcfg.Workspace, execConfig *osexec.ExecConfig) error {
 		data, err := execConfig.Exec("go", "work", "edit", "-go", versionNum)
 		if err != nil {
 			return erero.Wro(err)
@@ -108,8 +108,8 @@ func UpdateGoWorkVersion(config *workconfig.WorkspacesExecConfig, versionNum str
 	})
 }
 
-func UpdateGoModuleVersion(config *workconfig.WorkspacesExecConfig, versionNum string) error {
-	return config.ForeachProjectExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
+func UpdateGoModuleVersion(config *workcfg.WorksExec, versionNum string) error {
+	return config.ForeachSubExec(func(projectPath string, execConfig *osexec.ExecConfig) error {
 		data, err := execConfig.Exec("go", "mod", "edit", "-go", versionNum)
 		if err != nil {
 			return erero.Wro(err)
