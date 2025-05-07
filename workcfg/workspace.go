@@ -34,14 +34,14 @@ func NewWorkspace(workRoot string, projects []string) *Workspace {
 }
 
 type WorksExec struct {
-	workspaces []*Workspace
 	execConfig *osexec.ExecConfig
+	workspaces []*Workspace
 }
 
-func NewWorksExec(workspaces []*Workspace, execConfig *osexec.ExecConfig) *WorksExec {
+func NewWorksExec(execConfig *osexec.ExecConfig, workspaces []*Workspace) *WorksExec {
 	return &WorksExec{
-		workspaces: must.Have(workspaces),
 		execConfig: must.Nice(execConfig),
+		workspaces: must.Have(workspaces),
 	}
 }
 
@@ -67,14 +67,14 @@ func (wc *WorksExec) GetSubCommand(path string) *osexec.ExecConfig {
 	return wc.GetNewCommand().WithPath(path)
 }
 
-func (wc *WorksExec) ForeachWorkRun(run func(workspace *Workspace, execConfig *osexec.ExecConfig) error) error {
+func (wc *WorksExec) ForeachWorkRun(run func(execConfig *osexec.ExecConfig, workspace *Workspace) error) error {
 	for idx, workspace := range wc.GetWorkspaces() {
 		processMessage := fmt.Sprintf("(%d/%d)", idx, len(wc.GetWorkspaces()))
 
 		if workspace.WorkRoot != "" {
 			zaplog.SUG.Debugln("run", processMessage)
 
-			if err := run(workspace, wc.GetSubCommand(workspace.WorkRoot)); err != nil {
+			if err := run(wc.GetSubCommand(workspace.WorkRoot), workspace); err != nil {
 				return erero.Wro(err)
 			}
 		} else {
@@ -84,7 +84,7 @@ func (wc *WorksExec) ForeachWorkRun(run func(workspace *Workspace, execConfig *o
 	return nil
 }
 
-func (wc *WorksExec) ForeachSubExec(run func(projectPath string, execConfig *osexec.ExecConfig) error) error {
+func (wc *WorksExec) ForeachSubExec(run func(execConfig *osexec.ExecConfig, projectPath string) error) error {
 	for idx, workspace := range wc.GetWorkspaces() {
 		for num, projectPath := range workspace.Projects {
 			process1Message := fmt.Sprintf("(%d/%d)", idx, len(wc.GetWorkspaces()))
@@ -92,7 +92,7 @@ func (wc *WorksExec) ForeachSubExec(run func(projectPath string, execConfig *ose
 
 			zaplog.SUG.Debugln("run", process1Message, process2Message, projectPath)
 
-			if err := run(projectPath, wc.GetSubCommand(projectPath)); err != nil {
+			if err := run(wc.GetSubCommand(projectPath), projectPath); err != nil {
 				return erero.Wro(err)
 			}
 		}

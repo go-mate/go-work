@@ -24,7 +24,7 @@ func main() {
 	commandConfig.WithBash()
 	commandConfig.WithDebugMode(true)
 
-	worksExec := workcfg.NewWorksExec([]*workcfg.Workspace{workspace}, commandConfig)
+	worksExec := workcfg.NewWorksExec(commandConfig, []*workcfg.Workspace{workspace})
 
 	// 定义根命令
 	var rootCmd = &cobra.Command{

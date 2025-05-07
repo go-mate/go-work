@@ -23,6 +23,6 @@ func TestNewWorksExec(t *testing.T) {
 	workspace := NewWorkspace("", []string{projectPath})
 	must.Full(workspace)
 
-	worksExec := NewWorksExec([]*Workspace{workspace}, osexec.NewCommandConfig())
+	worksExec := NewWorksExec(osexec.NewCommandConfig(), []*Workspace{workspace})
 	must.Full(worksExec)
 }
