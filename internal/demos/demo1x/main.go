@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/go-mate/go-work/workcfg"
-	"github.com/go-mate/go-work/workcmd"
+	"github.com/go-mate/go-work/goworkcmd"
+	"github.com/go-mate/go-work/worksexec"
+	"github.com/go-mate/go-work/workspace"
 	"github.com/spf13/cobra"
 	"github.com/yyle88/must"
 	"github.com/yyle88/osexec"
@@ -18,13 +19,13 @@ func main() {
 	projectPath := runpath.PARENT.Up(3)
 	zaplog.SUG.Debugln(projectPath)
 
-	workspace := workcfg.NewWorkspace("", []string{projectPath})
+	wsp := workspace.NewWorkspace("", []string{projectPath})
 
 	commandConfig := osexec.NewCommandConfig()
 	commandConfig.WithBash()
 	commandConfig.WithDebugMode(true)
 
-	worksExec := workcfg.NewWorksExec(commandConfig, []*workcfg.Workspace{workspace})
+	wse := worksexec.NewWorksExec(commandConfig, []*workspace.Workspace{wsp})
 
 	// 定义根命令
 	var rootCmd = &cobra.Command{
@@ -35,8 +36,8 @@ func main() {
 			zaplog.LOG.Info("run")
 		},
 	}
-	rootCmd.AddCommand(workcmd.NewWorkCmd(worksExec))
-	rootCmd.AddCommand(workcmd.NewModCmd(worksExec))
+	rootCmd.AddCommand(goworkcmd.NewWorkCmd(wse))
+	rootCmd.AddCommand(goworkcmd.NewModCmd(wse))
 
 	must.Done(rootCmd.Execute())
 }
