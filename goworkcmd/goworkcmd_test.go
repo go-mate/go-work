@@ -16,7 +16,7 @@ func TestSync(t *testing.T) {
 
 	wsp := workspace.NewWorkspace("", []string{projectPath})
 
-	wse := worksexec.NewWorksExec(osexec.NewCommandConfig().WithDebugMode(true), []*workspace.Workspace{wsp})
+	wse := worksexec.NewWorksExec(osexec.NewCommandConfig().WithDebug(), []*workspace.Workspace{wsp})
 
 	require.NoError(t, Sync(wse))
 }
@@ -27,7 +27,7 @@ func TestTide(t *testing.T) {
 
 	wsp := workspace.NewWorkspace("", []string{projectPath})
 
-	wse := worksexec.NewWorksExec(osexec.NewCommandConfig().WithDebugMode(true), []*workspace.Workspace{wsp})
+	wse := worksexec.NewWorksExec(osexec.NewCommandConfig().WithDebug(), []*workspace.Workspace{wsp})
 
 	require.NoError(t, Tide(wse))
 }

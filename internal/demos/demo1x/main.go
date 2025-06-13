@@ -23,7 +23,7 @@ func main() {
 
 	commandConfig := osexec.NewCommandConfig()
 	commandConfig.WithBash()
-	commandConfig.WithDebugMode(true)
+	commandConfig.WithDebug()
 
 	wse := worksexec.NewWorksExec(commandConfig, []*workspace.Workspace{wsp})
 

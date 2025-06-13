@@ -38,7 +38,7 @@ func (wse *WorksExec) GetWorkspaces() []*workspace.Workspace {
 }
 
 func (wse *WorksExec) GetNewCommand() *osexec.ExecConfig {
-	return wse.execConfig.ShallowClone()
+	return wse.execConfig.NewConfig()
 }
 
 func (wse *WorksExec) GetSubCommand(path string) *osexec.ExecConfig {
