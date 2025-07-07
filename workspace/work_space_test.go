@@ -13,7 +13,7 @@ func TestNewWorkspace(t *testing.T) {
 	projectPath := runpath.PARENT.Up(1)
 	t.Log(projectPath)
 
-	wsp := workspace.NewWorkspace("", []string{projectPath})
-	must.Full(wsp)
-	t.Log(neatjsons.S(wsp))
+	workSpace := workspace.NewWorkSpace([]string{projectPath})
+	must.Full(workSpace)
+	t.Log(neatjsons.S(workSpace))
 }

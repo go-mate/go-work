@@ -13,6 +13,10 @@ type Workspace struct {
 	Projects []string // 该 Workspace 中的项目路径
 }
 
+func NewWorkSpace(projects []string) (wsp *Workspace) {
+	return NewWorkspace("", projects)
+}
+
 func NewWorkspace(workRoot string, projects []string) (wsp *Workspace) {
 	if workRoot != "" {
 		osmustexist.MustRoot(workRoot)
