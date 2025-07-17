@@ -37,6 +37,9 @@ func NewModCmd(worksExec *worksexec.WorksExec) *cobra.Command {
 		Use:   "mod",
 		Short: "go mod -->>",
 		Long:  "go mod -->>",
+		Run: func(cmd *cobra.Command, args []string) {
+			panic(erero.New("wrong"))
+		},
 	}
 	cmd.AddCommand(NewTidyCmd(worksExec))
 	cmd.AddCommand(NewTideCmd(worksExec))
@@ -98,7 +101,7 @@ func Tide(worksExec *worksexec.WorksExec) error {
 	})
 }
 
-func UpdateGoWorkVersion(worksExec *worksexec.WorksExec, versionNum string) error {
+func UpdateGoWorkGoVersion(worksExec *worksexec.WorksExec, versionNum string) error {
 	return worksExec.ForeachWorkRun(func(execConfig *osexec.ExecConfig, workspace *workspace.Workspace) error {
 		data, err := execConfig.Exec("go", "work", "edit", "-go", versionNum)
 		if err != nil {
@@ -109,7 +112,7 @@ func UpdateGoWorkVersion(worksExec *worksexec.WorksExec, versionNum string) erro
 	})
 }
 
-func UpdateGoModuleVersion(worksExec *worksexec.WorksExec, versionNum string) error {
+func UpdateModuleGoVersion(worksExec *worksexec.WorksExec, versionNum string) error {
 	return worksExec.ForeachSubExec(func(execConfig *osexec.ExecConfig, projectPath string) error {
 		data, err := execConfig.Exec("go", "mod", "edit", "-go", versionNum)
 		if err != nil {

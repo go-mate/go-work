@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/go-mate/go-work/modulepath"
+	"github.com/go-mate/go-work/workspath"
 	"github.com/spf13/cobra"
 	"github.com/yyle88/eroticgo"
 	"github.com/yyle88/must"
@@ -37,12 +37,12 @@ func main() {
 }
 
 func run(workPath string, shellType string, commandLine string, debugMode bool) {
-	options := modulepath.NewOptions().
+	options := workspath.NewOptions().
 		WithIncludeCurrentProject(true).
 		WithIncludeSubModules(true).
 		WithExcludeNoGo(true).
 		WithDebugMode(debugMode)
-	modulePaths := modulepath.GetModulePaths(workPath, options)
+	modulePaths := workspath.GetModulePaths(workPath, options)
 	if debugMode {
 		zaplog.SUG.Debugln("run in each path:", neatjsons.S(modulePaths))
 	}

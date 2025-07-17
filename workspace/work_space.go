@@ -10,7 +10,7 @@ import (
 // Workspace 代表一个 Go 工作目录，里面有多个子项目
 type Workspace struct {
 	WorkRoot string   // 工作区根目录
-	Projects []string // 该 Workspace 中的项目路径
+	Projects []string // 该 Workspace 各个子项目的路径
 }
 
 func NewWorkSpace(projects []string) (wsp *Workspace) {

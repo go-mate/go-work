@@ -1,4 +1,4 @@
-package modulepath
+package workspath
 
 import (
 	"io/fs"
