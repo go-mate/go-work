@@ -46,8 +46,9 @@ func (W *WorksExec) GetSubCommand(path string) *osexec.ExecConfig {
 }
 
 func (W *WorksExec) ForeachWorkRun(run func(execConfig *osexec.ExecConfig, workspace *workspace.Workspace) error) error {
-	for idx, wsp := range W.GetWorkspaces() {
-		processMessage := fmt.Sprintf("(%d/%d)", idx, len(W.GetWorkspaces()))
+	workspaces := W.GetWorkspaces()
+	for idx, wsp := range workspaces {
+		processMessage := fmt.Sprintf("(%d/%d)", idx, len(workspaces))
 
 		if wsp.WorkRoot != "" {
 			zaplog.SUG.Debugln("run", processMessage)
@@ -63,9 +64,10 @@ func (W *WorksExec) ForeachWorkRun(run func(execConfig *osexec.ExecConfig, works
 }
 
 func (W *WorksExec) ForeachSubExec(run func(execConfig *osexec.ExecConfig, projectPath string) error) error {
-	for idx, wsp := range W.GetWorkspaces() {
+	workspaces := W.GetWorkspaces()
+	for idx, wsp := range workspaces {
 		for num, projectPath := range wsp.Projects {
-			process1Message := fmt.Sprintf("(%d/%d)", idx, len(W.GetWorkspaces()))
+			process1Message := fmt.Sprintf("(%d/%d)", idx, len(workspaces))
 			process2Message := fmt.Sprintf("(%d/%d)", num, len(wsp.Projects))
 
 			zaplog.SUG.Debugln("run", process1Message, process2Message, projectPath)

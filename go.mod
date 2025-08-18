@@ -8,11 +8,11 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/yyle88/erero v1.0.23
 	github.com/yyle88/eroticgo v0.0.4
-	github.com/yyle88/must v0.0.25
+	github.com/yyle88/must v0.0.26
 	github.com/yyle88/neatjson v0.0.12
 	github.com/yyle88/osexec v0.0.32
 	github.com/yyle88/osexistpath v0.0.17
-	github.com/yyle88/rese v0.0.10
+	github.com/yyle88/rese v0.0.11
 	github.com/yyle88/runpath v1.0.23
 	github.com/yyle88/zaplog v0.0.26
 )
@@ -23,7 +23,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spf13/pflag v1.0.7 // indirect
-	github.com/yyle88/done v1.0.26 // indirect
+	github.com/yyle88/done v1.0.27 // indirect
 	github.com/yyle88/mutexmap v1.0.14 // indirect
 	github.com/yyle88/printgo v1.0.5 // indirect
 	github.com/yyle88/sure v0.0.40 // indirect

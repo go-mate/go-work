@@ -12,11 +12,11 @@ func GetProjectPath(currentPath string) (string, string, bool) {
 	for !osomitexist.IsFile(filepath.Join(projectPath, "go.mod")) {
 		subName := filepath.Base(projectPath)
 
-		prePath := filepath.Dir(projectPath)
-		if prePath == projectPath {
+		parentPath := filepath.Dir(projectPath)
+		if parentPath == projectPath {
 			return "", "", false
 		}
-		projectPath = prePath
+		projectPath = parentPath
 		shortMiddle = filepath.Join(subName, shortMiddle)
 	}
 	return projectPath, shortMiddle, true

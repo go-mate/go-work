@@ -44,23 +44,27 @@ func run(workPath string, shellType string, commandLine string, debugMode bool) 
 		WithDebugMode(debugMode)
 	modulePaths := workspath.GetModulePaths(workPath, options)
 	if debugMode {
-		zaplog.SUG.Debugln("run in each path:", neatjsons.S(modulePaths))
+		zaplog.SUG.Debugln("module paths:", neatjsons.S(modulePaths))
 	}
 	for _, modulePath := range modulePaths {
 		zaplog.SUG.Debugln(eroticgo.BLUE.Sprint("--"))
-
-		commandMessage := eroticgo.AMBER.Sprint("cd", modulePath, "&&", commandLine)
-		if debugMode {
-			zaplog.SUG.Debugln("run:", commandMessage)
-		}
-		config := osexec.NewExecConfig().WithPath(modulePath)
-		output := rese.V1(config.WithShell(shellType, "-c").Exec(commandLine))
-		if debugMode {
-			zaplog.SUG.Debugln("run:", commandMessage, "output:", eroticgo.GREEN.Sprint(string(output)))
-		}
-		zaplog.SUG.Debugln("run:", commandMessage, "->:", "success")
-
+		executeInSinglePath(modulePath, shellType, commandLine, debugMode)
 		zaplog.SUG.Debugln(eroticgo.BLUE.Sprint("--"))
 	}
 	eroticgo.GREEN.ShowMessage("SUCCESS")
+}
+
+func executeInSinglePath(modulePath string, shellType string, commandLine string, debugMode bool) {
+	commandMessage := eroticgo.AMBER.Sprint("cd", modulePath, "&&", commandLine)
+	if debugMode {
+		zaplog.SUG.Debugln("executing:", commandMessage)
+	}
+
+	config := osexec.NewExecConfig().WithPath(modulePath)
+	output := rese.V1(config.WithShell(shellType, "-c").Exec(commandLine))
+
+	if debugMode {
+		zaplog.SUG.Debugln("executing:", commandMessage, "output:", eroticgo.GREEN.Sprint(string(output)))
+	}
+	zaplog.SUG.Debugln("executing:", commandMessage, "->:", "success")
 }

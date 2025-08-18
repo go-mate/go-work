@@ -13,10 +13,14 @@ import (
 	"github.com/yyle88/zaplog"
 )
 
+// GetProjectPath finds the Go project root by traversing up the DIR tree.
+// Returns project path, relative middle path, and whether it's a Go module.
 func GetProjectPath(currentPath string) (string, string, bool) {
 	return utils.GetProjectPath(currentPath)
 }
 
+// GetModulePaths discovers all Go module paths based on the provided options.
+// It can include current project, submodules, and filter out empty directories.
 func GetModulePaths(currentPath string, options *Options) []string {
 	set := linkedhashset.New[string]()
 
@@ -75,6 +79,8 @@ func GetModulePaths(currentPath string, options *Options) []string {
 	return roots
 }
 
+// hasGoFiles checks if a DIR contains any .go source files.
+// It traverses the DIR tree but stops at nested go.mod boundaries.
 func hasGoFiles(root string) bool {
 	existGo := false
 	must.Done(filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
@@ -98,6 +104,8 @@ func hasGoFiles(root string) bool {
 	return existGo
 }
 
+// isHidePath determines if a file or DIR should be skipped during traversal.
+// Hidden files and directories (starting with '.') are skipped.
 func isHidePath(info fs.FileInfo) (error, bool) {
 	if info.IsDir() {
 		if strings.HasPrefix(info.Name(), ".") {
@@ -111,44 +119,52 @@ func isHidePath(info fs.FileInfo) (error, bool) {
 	return nil, false
 }
 
+// Options configures the behavior of module path discovery.
 type Options struct {
 	IncludeCurrentProject bool // 假如当前项目是go项目时，是否包含当前项目的根目录
 	IncludeCurrentPackage bool // 假如当前项目是go项目时，是否包含当前目录
 	IncludeSubModules     bool // 是否包含子模块的目录
-	ExcludeNoGo           bool
-	DebugMode             bool
+	ExcludeNoGo           bool // 跳过不含go代码的项目
+	DebugMode             bool // Enable detailed debug logging
 }
 
+// NewOptions creates a new Options instance with all flags set to false by default.
+// Use the With* methods to configure the desired behavior.
 func NewOptions() *Options {
 	return &Options{
-		IncludeCurrentProject: false, //是否包含当前项目的根目录
-		IncludeCurrentPackage: false, //是否包含当前目录
-		IncludeSubModules:     false, //是否包含子模块的目录
-		ExcludeNoGo:           false, //是否包含没有 go 文件的目录
-		DebugMode:             false,
+		IncludeCurrentProject: false, // Whether to include current project root DIR
+		IncludeCurrentPackage: false, // Whether to include current DIR
+		IncludeSubModules:     false, // Whether to include submodule directories
+		ExcludeNoGo:           false, // Whether to exclude directories without Go files
+		DebugMode:             false, // Whether to enable debug mode
 	}
 }
 
+// WithIncludeCurrentProject sets whether to include the current project root DIR.
 func (c *Options) WithIncludeCurrentProject(includeCurrentProject bool) *Options {
 	c.IncludeCurrentProject = includeCurrentProject
 	return c
 }
 
+// WithIncludeCurrentPackage sets whether to include the current DIR.
 func (c *Options) WithIncludeCurrentPackage(includeCurrentPackage bool) *Options {
 	c.IncludeCurrentPackage = includeCurrentPackage
 	return c
 }
 
+// WithIncludeSubModules sets whether to include discovered submodule directories.
 func (c *Options) WithIncludeSubModules(includeSubModules bool) *Options {
 	c.IncludeSubModules = includeSubModules
 	return c
 }
 
+// WithExcludeNoGo sets whether to exclude directories without Go source files.
 func (c *Options) WithExcludeNoGo(excludeNoGo bool) *Options {
 	c.ExcludeNoGo = excludeNoGo
 	return c
 }
 
+// WithDebugMode sets whether to enable detailed debug logging.
 func (c *Options) WithDebugMode(debugMode bool) *Options {
 	c.DebugMode = debugMode
 	return c
