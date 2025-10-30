@@ -1,5 +1,5 @@
-// Package workspath: Go module path discovery and workspace traversal engine
-// Auto discovers Go modules in workspace structures with configurable options
+// Package workspath: Go module path detection and workspace traversing engine
+// Auto detects Go modules in workspace structures with configurable options
 // Supports both single projects and complex multi-module workspace setups
 //
 // workspath: Go 模块路径发现和工作区遍历引擎
@@ -20,20 +20,34 @@ import (
 	"github.com/yyle88/zaplog"
 )
 
-// GetProjectPath finds the Go project root by traversing up the DIR tree
-// Returns project path, relative middle path, and whether it's a Go module
-// Delegates to utils package for actual implementation
+// PathInfo contains information about a discovered Go project
+// Encapsulates project root path, relative middle path, and module status
 //
-// 通过向上遍历 DIR 树查找 Go 项目根目录
-// 返回项目路径、相对中间路径，以及是否为 Go 模块
-// 委托给 utils 包进行实际实现
-func GetProjectPath(currentPath string) (string, string, bool) {
-	return utils.GetProjectPath(currentPath)
+// PathInfo 包含已发现的 Go 项目的信息
+// 封装项目根路径、相对中间路径和模块状态
+type PathInfo struct {
+	ProjectPath string // Root path of the Go project // Go 项目的根路径
+	ShortMiddle string // Relative path from project root to current DIR // 从项目根到当前 DIR 的相对路径
 }
 
-// GetModulePaths discovers all Go module paths based on the provided options
-// Can include current project, submodules, and filter out empty directories
-// Uses linked hash set to maintain discovery order and eliminate duplicates
+// GetProjectPath finds the Go project root through traversing up the DIR tree
+// Returns PathInfo struct with project path, relative middle path, and module status
+// Delegates to utils package with the implementation
+//
+// 通过向上遍历 DIR 树查找 Go 项目根目录
+// 返回包含项目路径、相对中间路径和模块状态的 PathInfo 结构体
+// 委托给 utils 包进行实际实现
+func GetProjectPath(currentPath string) (*PathInfo, bool) {
+	projectPath, shortMiddle, ok := utils.GetProjectPath(currentPath)
+	return &PathInfo{
+		ProjectPath: projectPath,
+		ShortMiddle: shortMiddle,
+	}, ok
+}
+
+// GetModulePaths detects Go module paths based on the provided options
+// Can include current project, submodules, and exclude blank directories
+// Uses linked hash set to maintain detection sequence and eliminate duplicates
 //
 // 根据提供的选项发现所有 Go 模块路径
 // 可以包含当前项目、子模块，并过滤掉空目录
@@ -44,13 +58,13 @@ func GetModulePaths(currentPath string, options *Options) []string {
 	// Handle current project and package inclusion
 	// 处理当前项目和包的包含
 	if options.IncludeCurrentProject || options.IncludeCurrentPackage {
-		projectPath, shortMiddle, isGoModule := GetProjectPath(currentPath)
-		if !isGoModule {
-			must.None(projectPath)
-			must.None(shortMiddle)
+		info, ok := GetProjectPath(currentPath)
+		if !ok {
+			must.None(info.ProjectPath)
+			must.None(info.ShortMiddle)
 		} else {
 			if options.IncludeCurrentProject {
-				set.Add(projectPath) // Add project DIR to results // 把项目 DIR 添加到结果里
+				set.Add(info.ProjectPath) // Add project DIR to results // 把项目 DIR 添加到结果里
 			}
 
 			if options.IncludeCurrentPackage {
@@ -62,19 +76,19 @@ func GetModulePaths(currentPath string, options *Options) []string {
 		}
 	}
 
-	// Discover submodules by walking file tree
+	// Find submodules through walking file tree
 	// Current DIR might contain go.mod file, hash-set eliminates duplicates
 	//
 	// 通过遍历文件树发现子模块
 	// 当前 DIR 可能包含 go.mod 文件，哈希集合消除重复项
 	if options.IncludeSubModules {
 		must.Done(filepath.Walk(currentPath, func(path string, info fs.FileInfo, err error) error {
-			if exSkip, isHide := isHidePath(info); isHide {
-				return exSkip
+			if skipErr, shouldSkip := skipHiddenPath(info); shouldSkip {
+				return skipErr
 			}
 			if !info.IsDir() && info.Name() == "go.mod" {
-				if subRoot := filepath.Dir(path); osmustexist.IsRoot(subRoot) {
-					set.Add(subRoot)
+				if moduleRoot := filepath.Dir(path); osmustexist.IsRoot(moduleRoot) {
+					set.Add(moduleRoot)
 				}
 				return nil
 			}
@@ -85,81 +99,78 @@ func GetModulePaths(currentPath string, options *Options) []string {
 		}
 	}
 
-	// Filter out projects without Go source files
-	// Some projects have no Go files (empty projects or just containers)
+	// Exclude projects without Go source files
+	// Some projects have no Go files (workspace roots, organizing directories)
 	//
 	// 过滤掉没有写 Go 源文件的项目
-	// 有的项目没有 Go 文件（空项目或仅为容器）
+	// 有的项目没有 Go 文件（工作区根目录、组织性目录）
 	if options.ExcludeNoGo {
-		set = set.Select(func(index int, value string) bool {
+		set = set.Select(func(idx int, modulePath string) bool {
 			if options.DebugMode {
-				zaplog.SUG.Debugln(index, value)
+				zaplog.SUG.Debugln(idx, modulePath)
 			}
-			return hasGoFiles(value)
+			return containsGoFiles(modulePath)
 		})
 		if options.DebugMode {
 			zaplog.SUG.Debugln(neatjsons.S(set))
 		}
 	}
 
-	roots := set.Values()
-	return roots
+	modulePaths := set.Values()
+	return modulePaths
 }
 
-// hasGoFiles checks if a DIR contains any .go source files
+// containsGoFiles checks if a DIR contains .go source files
 // Traverses the DIR tree but stops at nested go.mod boundaries
-// Returns true immediately when first .go file is found for efficiency
+// Returns true when first .go file is found
 //
 // 检查 DIR 是否包含任何 .go 源文件
 // 遍历 DIR 树但在嵌套的 go.mod 边界处停止
-// 为提高效率，在找到第一个 .go 文件时立即返回 true
-func hasGoFiles(root string) bool {
-	existGo := false
-	must.Done(filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-		if exSkip, isHide := isHidePath(info); isHide {
-			return exSkip
+// 找到第一个 .go 文件时返回 true
+func containsGoFiles(rootPath string) bool {
+	found := false
+	must.Done(filepath.Walk(rootPath, func(path string, info fs.FileInfo, err error) error {
+		if skipErr, shouldSkip := skipHiddenPath(info); shouldSkip {
+			return skipErr
 		}
 
 		if info.IsDir() {
-			// Stop when encountering other project's go.mod (exclude current DIR)
+			// Stop when encountering nested project's go.mod (exclude current DIR)
 			// 遇到其他项目的 go.mod 时停止（排除当前 DIR）
-			if path != root && osmustexist.IsFile(filepath.Join(path, "go.mod")) {
+			if path != rootPath && osmustexist.IsFile(filepath.Join(path, "go.mod")) {
 				return filepath.SkipDir
 			}
 		} else {
 			if filepath.Ext(info.Name()) == ".go" {
-				existGo = true
+				found = true
 				return filepath.SkipAll
 			}
 		}
 		return nil
 	}))
-	return existGo
+	return found
 }
 
-// isHidePath determines if a file or DIR should be skipped during traversal
-// Hidden files and directories (starting with '.') are skipped automatically
-// Returns appropriate skip error for directories vs files
+// skipHiddenPath checks if a file should be skipped when traversing
+// Hidden files and directories (starting with '.') are skipped
+// Returns skip status and boolean flag
 //
-// 确定文件或 DIR 在遍历过程中是否应被跳过
-// 自动跳过隐藏的文件和目录（以 '.' 开头）
-// 为目录与文件返回适当的跳过错误
-func isHidePath(info fs.FileInfo) (error, bool) {
-	if info.IsDir() {
-		if strings.HasPrefix(info.Name(), ".") {
+// 检查文件或 DIR 在遍历过程中是否应被跳过
+// 跳过隐藏的文件和目录（以 '.' 开头）
+// 返回跳过错误和布尔标志
+func skipHiddenPath(info fs.FileInfo) (error, bool) {
+	if strings.HasPrefix(info.Name(), ".") {
+		if info.IsDir() {
 			return filepath.SkipDir, true
 		}
-	} else {
-		if strings.HasPrefix(info.Name(), ".") {
-			return nil, true
-		}
+		return nil, true
 	}
 	return nil, false
 }
 
-// Options configures the behavior of module path discovery
-// Provides fine-grained control over which modules to include
-// Supports debug mode for detailed discovery process logging
+// Options configures the settings of module path detection
+// Provides fine-grained selection of which modules to include
+// Supports debug mode with detailed detection process logging
 //
 // Options 配置模块路径发现行为
 // 提供对包含哪些模块的细粒度控制
@@ -172,69 +183,69 @@ type Options struct {
 	DebugMode             bool // Enable detailed debug logging // 启用详细调试日志
 }
 
-// NewOptions creates a new Options instance with all flags set to false by default
-// Use the With* methods to configure the desired behavior
-// Provides a clean starting point for building custom discovery configurations
+// NewOptions creates a new Options instance with flags defaulting to false
+// Use the With* methods to set the needed options
+// Provides a clean starting point when building custom detection setups
 //
 // 创建一个新的 Options 实例，默认所有标志都设置为 false
 // 使用 With* 方法配置所需的行为
 // 为构建自定义发现配置提供干净的起点
 func NewOptions() *Options {
 	return &Options{
-		IncludeCurrentProject: false, // Whether to include current project root DIR // 是否包含当前项目根 DIR
-		IncludeCurrentPackage: false, // Whether to include current DIR // 是否包含当前 DIR
-		IncludeSubModules:     false, // Whether to include submodule directories // 是否包含子模块目录
-		ExcludeNoGo:           false, // Whether to exclude directories without Go files // 是否排除没有 Go 文件的目录
-		DebugMode:             false, // Whether to enable debug mode // 是否启用调试模式
+		IncludeCurrentProject: false, // If true, includes current project root DIR // 是否包含当前项目根 DIR
+		IncludeCurrentPackage: false, // If true, includes current DIR // 是否包含当前 DIR
+		IncludeSubModules:     false, // If true, includes submodule directories // 是否包含子模块目录
+		ExcludeNoGo:           false, // If true, excludes directories without Go files // 是否排除没有 Go 文件的目录
+		DebugMode:             false, // If true, enables debug mode // 是否启用调试模式
 	}
 }
 
-// WithIncludeCurrentProject sets whether to include the current project root DIR
-// Returns the Options instance for method chaining
+// WithIncludeCurrentProject sets if the current project root DIR should be included
+// Returns the Options instance to support method chaining
 //
 // 设置是否包含当前项目根 DIR
 // 返回 Options 实例以支持方法链
-func (c *Options) WithIncludeCurrentProject(includeCurrentProject bool) *Options {
-	c.IncludeCurrentProject = includeCurrentProject
-	return c
+func (o *Options) WithIncludeCurrentProject(includeCurrentProject bool) *Options {
+	o.IncludeCurrentProject = includeCurrentProject
+	return o
 }
 
-// WithIncludeCurrentPackage sets whether to include the current DIR
-// Returns the Options instance for method chaining
+// WithIncludeCurrentPackage sets if the current DIR should be included
+// Returns the Options instance to support method chaining
 //
 // 设置是否包含当前 DIR
 // 返回 Options 实例以支持方法链
-func (c *Options) WithIncludeCurrentPackage(includeCurrentPackage bool) *Options {
-	c.IncludeCurrentPackage = includeCurrentPackage
-	return c
+func (o *Options) WithIncludeCurrentPackage(includeCurrentPackage bool) *Options {
+	o.IncludeCurrentPackage = includeCurrentPackage
+	return o
 }
 
-// WithIncludeSubModules sets whether to include discovered submodule directories
-// Returns the Options instance for method chaining
+// WithIncludeSubModules sets if detected submodule directories should be included
+// Returns the Options instance to support method chaining
 //
 // 设置是否包含发现的子模块目录
 // 返回 Options 实例以支持方法链
-func (c *Options) WithIncludeSubModules(includeSubModules bool) *Options {
-	c.IncludeSubModules = includeSubModules
-	return c
+func (o *Options) WithIncludeSubModules(includeSubModules bool) *Options {
+	o.IncludeSubModules = includeSubModules
+	return o
 }
 
-// WithExcludeNoGo sets whether to exclude directories without Go source files
-// Returns the Options instance for method chaining
+// WithExcludeNoGo sets if directories without Go source files should be excluded
+// Returns the Options instance to support method chaining
 //
 // 设置是否排除没有 Go 源文件的目录
 // 返回 Options 实例以支持方法链
-func (c *Options) WithExcludeNoGo(excludeNoGo bool) *Options {
-	c.ExcludeNoGo = excludeNoGo
-	return c
+func (o *Options) WithExcludeNoGo(excludeNoGo bool) *Options {
+	o.ExcludeNoGo = excludeNoGo
+	return o
 }
 
-// WithDebugMode sets whether to enable detailed debug logging
-// Returns the Options instance for method chaining
+// WithDebugMode sets if detailed debug logging should be enabled
+// Returns the Options instance to support method chaining
 //
 // 设置是否启用详细调试日志
 // 返回 Options 实例以支持方法链
-func (c *Options) WithDebugMode(debugMode bool) *Options {
-	c.DebugMode = debugMode
-	return c
+func (o *Options) WithDebugMode(debugMode bool) *Options {
+	o.DebugMode = debugMode
+	return o
 }

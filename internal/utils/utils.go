@@ -1,6 +1,6 @@
-// Package utils: Internal utilities for Go project path discovery and analysis
-// Provides core functionality for traversing file system and finding Go modules
-// Used by workspath package for module discovery operations
+// Package utils: Core utilities that detect and analyze Go project paths
+// Traverses file system and finds Go modules
+// Used in workspath package when detecting modules
 //
 // utils: Go 项目路径发现和分析的内部工具
 // 提供遍历文件系统和查找 Go 模块的核心功能
@@ -13,9 +13,9 @@ import (
 	"github.com/yyle88/osexistpath/osomitexist"
 )
 
-// GetProjectPath finds the Go project root by traversing up the DIR tree
-// Searches for go.mod file starting from current path and moving up
-// Returns project root path, relative middle path, and whether it's a Go module
+// GetProjectPath finds the Go project root through traversing up the DIR tree
+// Finds go.mod file starting from current path and moving up
+// Returns project root path, relative middle path, and a bool indicating if it's a Go module
 //
 // 通过向上遍历 DIR 树查找 Go 项目根目录
 // 从当前路径开始搜索 go.mod 文件并向上移动
@@ -26,14 +26,14 @@ func GetProjectPath(currentPath string) (string, string, bool) {
 	projectPath := currentPath
 	shortMiddle := ""
 
-	// Keep searching until we find go.mod or reach filesystem root
+	// Keep searching before: finding go.mod / reaching filesystem root
 	// 继续搜索直到找到 go.mod 或达到文件系统根目录
 	for !osomitexist.IsFile(filepath.Join(projectPath, "go.mod")) {
-		// Get current DIR name for building relative path
+		// Get current DIR name to build relative path
 		// 获取当前 DIR 名用于构建相对路径
 		subName := filepath.Base(projectPath)
 
-		// Move up one level
+		// Move up one step
 		// 向上移动一级
 		parentPath := filepath.Dir(projectPath)
 		if parentPath == projectPath {
@@ -42,7 +42,7 @@ func GetProjectPath(currentPath string) (string, string, bool) {
 			return "", "", false
 		}
 
-		// Update paths for next iteration
+		// Update paths in next iteration
 		// 更新路径以进行下一次迭代
 		projectPath = parentPath
 		shortMiddle = filepath.Join(subName, shortMiddle)

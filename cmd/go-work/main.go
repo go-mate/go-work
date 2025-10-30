@@ -1,8 +1,10 @@
-// go-work: Workspace management tool for executing commands across Go modules
-// Auto discover and execute commands in multiple Go projects within a workspace
+// Package main: go-work entrypoint
+// go-work: Workspace management package that executes commands across Go modules
+// Auto detects and executes commands in multiple Go projects within workspace
 // Supports both standalone projects and Go workspace configurations
 //
-// go-work: Go 工作区管理工具，用于在多个 Go 模块中执行命令
+// main: go-work 的程序入口
+// go-work: Go 工作区管理工具，在多个 Go 模块中执行命令
 // 自动发现并在工作区内的多个 Go 项目中执行命令
 // 支持独立项目和 Go workspace 配置
 package main
@@ -21,87 +23,124 @@ import (
 )
 
 func main() {
-	// Get current working DIR for workspace analysis
-	// 获取当前工作 DIR 用于工作区分析
 	workPath := rese.C1(os.Getwd())
 	zaplog.SUG.Debugln(eroticgo.GREEN.Sprint(workPath))
 
-	// Define command line parameters
-	// 定义命令行参数
-	var commandLine string
-	var debugMode bool
-	rootCmd := cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:   "go-work",
-		Short: "go-work",
-		Long:  "go-work",
-		Run: func(cmd *cobra.Command, args []string) {
-			// Detect shell type from environment
-			// 从环境中检测 shell 类型
-			shellType := must.Nice(os.Getenv("SHELL"))
-			if debugMode {
-				zaplog.SUG.Debugln("current shell-type:", shellType)
-			}
-			run(workPath, shellType, commandLine, debugMode)
-		},
+		Short: "Workspace management in Go modules",
+		Long:  "go-work: Auto detects and executes commands across multiple Go projects in workspace",
 	}
-	rootCmd.Flags().StringVarP(&commandLine, "command", "c", "", "command to run in each path")
-	rootCmd.Flags().BoolVarP(&debugMode, "debug", "", false, "enable debug mode")
+
+	rootCmd.AddCommand(newExecCommand(workPath))
 	must.Done(rootCmd.Execute())
 }
 
-// Execute command across all discovered Go modules in workspace
-// Auto configure options to include current project and submodules
+// Config encapsulates execution configuration and parameters
+// Centralizes settings like command text, debug mode, and paths
 //
-// 在工作区中发现的所有 Go 模块中执行命令
-// 自动配置选项以包含当前项目和子模块
-func run(workPath string, shellType string, commandLine string, debugMode bool) {
-	// Configure module discovery options
-	// 配置模块发现选项
-	options := workspath.NewOptions().
-		WithIncludeCurrentProject(true).
-		WithIncludeSubModules(true).
-		WithExcludeNoGo(true).
-		WithDebugMode(debugMode)
+// Config 封装执行配置和参数
+// 集中管理命令文本、调试模式和路径等设置
+type Config struct {
+	workPath    string // Base path to search in modules // 模块搜索的基础路径
+	shellType   string // Runtime shell name used in command execution // 命令执行使用的 shell 类型
+	commandLine string // Command text to execute in each module // 在每个模块中执行的命令行
+	debugMode   bool   // Enable detailed logging output // 启用详细的日志输出
+}
 
-	// Discover all Go module paths in workspace
-	// 发现工作区中的所有 Go 模块路径
-	modulePaths := workspath.GetModulePaths(workPath, options)
-	if debugMode {
-		zaplog.SUG.Debugln("module paths:", neatjsons.S(modulePaths))
+// newExecCommand creates the exec subcommand with workspace execution logic
+// Returns configured cobra command that detects modules and runs commands
+//
+// newExecCommand 创建带有工作区执行逻辑的 exec 子命令
+// 返回配置好的 cobra 命令，用于发现模块并执行命令
+func newExecCommand(workPath string) *cobra.Command {
+	cfg := &Config{workPath: workPath}
+
+	execCmd := &cobra.Command{
+		Use:   "exec",
+		Short: "Execute command across Go modules in workspace",
+		Long:  "Execute specified command in each detected Go module within the workspace",
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg.shellType = must.Nice(os.Getenv("SHELL"))
+			cfg.run()
+		},
 	}
 
-	// Execute command in each discovered module
-	// 在每个发现的模块中执行命令
-	for _, modulePath := range modulePaths {
-		zaplog.SUG.Debugln(eroticgo.BLUE.Sprint("--"))
-		executeInSinglePath(modulePath, shellType, commandLine, debugMode)
-		zaplog.SUG.Debugln(eroticgo.BLUE.Sprint("--"))
-	}
+	execCmd.Flags().StringVarP(&cfg.commandLine, "command", "c", "", "command to run in each module path")
+	execCmd.Flags().BoolVarP(&cfg.debugMode, "debug", "", false, "enable debug mode")
+
+	return execCmd
+}
+
+// run executes the command across each module in workspace
+// Detects modules and runs the command in each detected path
+//
+// run 在工作区的每个模块中执行命令
+// 检测模块并在每个检测到的路径中运行命令
+func (cfg *Config) run() {
+	cfg.debugLog("current sh-type:", cfg.shellType)
+
+	modulePaths := cfg.detectModules()
+	cfg.debugLog("module paths:", neatjsons.S(modulePaths))
+
+	cfg.executes(modulePaths)
 	eroticgo.GREEN.ShowMessage("SUCCESS")
 }
 
-// Execute command in single module path with specified shell
-// Shows execution progress and handles output based on debug mode
+// detectModules finds each Go module in the workspace
+// Returns slice containing paths to detected modules
 //
-// 在单个模块路径中使用指定 shell 执行命令
-// 显示执行进度并根据调试模式处理输出
-func executeInSinglePath(modulePath string, shellType string, commandLine string, debugMode bool) {
-	// Build command message for display
-	// 构建用于显示的命令消息
-	commandMessage := eroticgo.AMBER.Sprint("cd", modulePath, "&&", commandLine)
-	if debugMode {
-		zaplog.SUG.Debugln("executing:", commandMessage)
+// detectModules 检测工作区中的每个 Go 模块
+// 返回包含检测到的模块路径的切片
+func (cfg *Config) detectModules() []string {
+	options := workspath.NewOptions().
+		WithIncludeCurrentProject(true).
+		WithIncludeCurrentPackage(false).
+		WithIncludeSubModules(true).
+		WithExcludeNoGo(true).
+		WithDebugMode(cfg.debugMode)
+
+	return workspath.GetModulePaths(cfg.workPath, options)
+}
+
+// executes runs the command in each module path
+// Iterates through modules and executes the configured command
+//
+// executes 在每个模块路径中运行命令
+// 遍历模块并执行配置的命令
+func (cfg *Config) executes(modulePaths []string) {
+	for _, modulePath := range modulePaths {
+		zaplog.SUG.Debugln(eroticgo.BLUE.Sprint("--"))
+		cfg.execute(modulePath)
+		zaplog.SUG.Debugln(eroticgo.BLUE.Sprint("--"))
 	}
+}
 
-	// Execute command with path context
-	// 在路径上下文中执行命令
-	config := osexec.NewExecConfig().WithPath(modulePath)
-	output := rese.V1(config.WithShell(shellType, "-c").Exec(commandLine))
+// execute runs the command in a single module path
+// Executes command with specified runtime and handles output
+//
+// execute 在单个模块路径中运行命令
+// 使用指定的 shell 执行命令并处理输出
+func (cfg *Config) execute(modulePath string) {
+	commandMessage := eroticgo.AMBER.Sprint("cd", modulePath, "&&", cfg.commandLine)
+	cfg.debugLog("executing:", commandMessage)
 
-	// Show detailed output in debug mode
-	// 在调试模式下显示详细输出
-	if debugMode {
+	execConfig := osexec.NewExecConfig().WithPath(modulePath)
+	output := rese.V1(execConfig.WithShell(cfg.shellType, "-c").Exec(cfg.commandLine))
+
+	if cfg.debugMode {
 		zaplog.SUG.Debugln("executing:", commandMessage, "output:", eroticgo.GREEN.Sprint(string(output)))
 	}
 	zaplog.SUG.Debugln("executing:", commandMessage, "->:", "success")
+}
+
+// debugLog outputs log message when debug mode is active
+// Reduces repetitive debug mode checks
+//
+// debugLog 在调试模式激活时输出日志消息
+// 辅助函数用于减少重复的调试模式检查
+func (cfg *Config) debugLog(args ...interface{}) {
+	if cfg.debugMode {
+		zaplog.ZAPS.Skip(1).SUG.Debugln(args...)
+	}
 }
