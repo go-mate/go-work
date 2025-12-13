@@ -1,10 +1,8 @@
-// Package workspath: Tests Go module path detection and workspace traversing
+// Package workspath: Tests Go module path detection and workspace scanning
 // Verifies module detection with different option configurations
-// Tests filtering logic and path resolution
 //
-// workspath: 测试 Go 模块路径发现和工作区遍历
+// workspath: 测试 Go 模块路径发现和工作区扫描
 // 验证不同选项配置的模块检测
-// 测试过滤逻辑和路径解析准确性
 package workspath
 
 import (
@@ -19,117 +17,154 @@ import (
 	"github.com/yyle88/runpath"
 )
 
-// TestGetModulePaths tests module path detection with various options
-// Verifies that paths are detected and filtered as expected
-//
-// TestGetModulePaths 测试带各种选项的模块路径发现
-// 验证路径被正确发现和过滤
-func TestGetModulePaths(t *testing.T) {
+// TestGetProjectPath tests project root detection with ProjectPath
+// TestGetProjectPath 测试项目根目录发现（返回 ProjectPath）
+func TestGetProjectPath(t *testing.T) {
 	pkgPath := runpath.PARENT.Path()
-	t.Log(pkgPath)
+	t.Log("pkgPath:", pkgPath)
 
-	options := NewOptions().
-		WithIncludeCurrentProject(true).
-		WithIncludeCurrentPackage(true).
-		WithIncludeSubModules(true).
-		WithExcludeNoGo(true).
-		WithDebugMode(true)
-	t.Log(neatjsons.S(options))
-
-	paths := GetModulePaths(pkgPath, options)
-	t.Log(neatjsons.S(paths))
-
-	require.NotEmpty(t, paths, "should find at least one module path")
-	require.Contains(t, paths, runpath.PARENT.Up(1), "should include project root")
+	info, ok := GetProjectPath(pkgPath)
+	require.True(t, ok)
+	require.NotEmpty(t, info.Root)
+	require.Equal(t, runpath.PARENT.Up(1), info.Root)
+	require.Equal(t, "workspath", info.SubPath)
+	t.Log("info:", neatjsons.S(info))
 }
 
-// TestGetModulePathsOptions tests different option combinations
-// Validates handling of different inclusion and exclusion settings
-//
-// TestGetModulePathsOptions 测试不同的选项组合
-// 验证不同包含和排除设置的行为
-func TestGetModulePathsOptions(t *testing.T) {
-	tempDIR := setupTestGoProject(t)
-	defer cleanupTestDIR(t, tempDIR)
+// TestGetProjectPath_NotFound tests when go.mod is not found
+// TestGetProjectPath_NotFound 测试找不到 go.mod 的情况
+func TestGetProjectPath_NotFound(t *testing.T) {
+	tempDIR := rese.V1(os.MkdirTemp("", "test-no-gomod-*"))
+	defer must.Done(os.RemoveAll(tempDIR))
 
-	// Test different option combinations
-	tests := []struct {
-		name     string
-		options  *Options
-		expected int
-	}{
-		{
-			name:     "include current project just",
-			options:  NewOptions().WithIncludeCurrentProject(true),
-			expected: 1,
-		},
-		{
-			name:     "include submodules just",
-			options:  NewOptions().WithIncludeSubModules(true),
-			expected: 2, // main + sub
-		},
-		{
-			name:     "exclude directories without Go files",
-			options:  NewOptions().WithIncludeSubModules(true).WithExcludeNoGo(true),
-			expected: 1, // just the one with Go files
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			paths := GetModulePaths(tempDIR, tt.options)
-			require.Len(t, paths, tt.expected, "should have expected count of paths")
-		})
-	}
+	info, ok := GetProjectPath(tempDIR)
+	require.False(t, ok)
+	require.Nil(t, info)
 }
 
-// TestNewOptions verifies default Options initialization
-// Ensures each flag starts as false when initialized
-//
-// TestNewOptions 验证默认 Options 初始化
-// 确保所有标志默认从 false 开始
-func TestNewOptions(t *testing.T) {
-	options := NewOptions()
-	require.False(t, options.IncludeCurrentProject)
-	require.False(t, options.IncludeCurrentPackage)
-	require.False(t, options.IncludeSubModules)
-	require.False(t, options.ExcludeNoGo)
-	require.False(t, options.DebugMode)
+// TestGetProjectRoot tests simple project root detection
+// TestGetProjectRoot 测试简单项目根目录发现
+func TestGetProjectRoot(t *testing.T) {
+	pkgPath := runpath.PARENT.Path()
+	t.Log("pkgPath:", pkgPath)
+
+	root, ok := GetProjectRoot(pkgPath)
+	require.True(t, ok)
+	require.NotEmpty(t, root)
+	require.Equal(t, runpath.PARENT.Up(1), root)
+	t.Log("root:", root)
 }
 
-// TestOptionsBuilderPattern tests the option chaining implementation
-// Validates that options can be chained and applied as expected
-//
-// TestOptionsBuilderPattern 测试构建器模式实现
-// 验证选项可以被链式调用并正确应用
-func TestOptionsBuilderPattern(t *testing.T) {
-	options := NewOptions().
-		WithIncludeCurrentProject(true).
-		WithIncludeCurrentPackage(true).
-		WithIncludeSubModules(true).
-		WithExcludeNoGo(true).
-		WithDebugMode(true)
+// TestGetProjectRoot_NotFound tests when go.mod is not found
+// TestGetProjectRoot_NotFound 测试找不到 go.mod 的情况
+func TestGetProjectRoot_NotFound(t *testing.T) {
+	tempDIR := rese.V1(os.MkdirTemp("", "test-no-gomod-*"))
+	defer must.Done(os.RemoveAll(tempDIR))
 
-	require.True(t, options.IncludeCurrentProject)
-	require.True(t, options.IncludeCurrentPackage)
-	require.True(t, options.IncludeSubModules)
-	require.True(t, options.ExcludeNoGo)
-	require.True(t, options.DebugMode)
+	root, ok := GetProjectRoot(tempDIR)
+	require.False(t, ok)
+	require.Empty(t, root)
 }
 
-// setupTestGoProject creates a temp test project structure
-// Returns temp DIR path with main and submodule projects
+// TestGetModulePaths tests basic module scanning
+// TestGetModulePaths 测试基本模块扫描
+func TestGetModulePaths(t *testing.T) {
+	// Use project root (go-work) not sub DIR (workspath)
+	// 使用项目根目录 (go-work) 而不是子目录 (workspath)
+	projectRoot := runpath.PARENT.Up(1)
+	t.Log("projectRoot:", projectRoot)
+
+	paths := GetModulePaths(projectRoot, WithCurrentProject(), ScanDeep(), SkipNoGo(), DebugMode())
+	t.Log("paths:", neatjsons.S(paths))
+
+	require.NotEmpty(t, paths)
+	require.Contains(t, paths, projectRoot)
+}
+
+// TestGetModulePaths_RootIsModule tests scanning when root is a module
+// TestGetModulePaths_RootIsModule 测试 root 本身是模块的情况
+func TestGetModulePaths_RootIsModule(t *testing.T) {
+	tempDIR := setupTestProject(t)
+	defer cleanupDIR(t, tempDIR)
+
+	paths := GetModulePaths(tempDIR, WithCurrentProject())
+	require.Len(t, paths, 1)
+	require.Equal(t, tempDIR, paths[0])
+}
+
+// TestGetModulePaths_ScanDeep tests submodule scanning
+// TestGetModulePaths_ScanDeep 测试子模块扫描
+func TestGetModulePaths_ScanDeep(t *testing.T) {
+	tempDIR := setupTestProject(t)
+	defer cleanupDIR(t, tempDIR)
+
+	// Without ScanDeep - just root
+	paths := GetModulePaths(tempDIR, WithCurrentProject())
+	require.Len(t, paths, 1)
+
+	// With ScanDeep - root + submodule
+	paths = GetModulePaths(tempDIR, WithCurrentProject(), ScanDeep())
+	require.Len(t, paths, 2)
+}
+
+// TestGetModulePaths_SkipNoGo tests empty module filtering
+// TestGetModulePaths_SkipNoGo 测试空模块过滤
+func TestGetModulePaths_SkipNoGo(t *testing.T) {
+	tempDIR := setupTestProject(t)
+	defer cleanupDIR(t, tempDIR)
+
+	// With ScanDeep, no filter - includes empty submodule
+	paths := GetModulePaths(tempDIR, WithCurrentProject(), ScanDeep())
+	require.Len(t, paths, 2)
+
+	// With ScanDeep + SkipNoGo - excludes empty submodule
+	paths = GetModulePaths(tempDIR, WithCurrentProject(), ScanDeep(), SkipNoGo())
+	require.Len(t, paths, 1)
+	require.Equal(t, tempDIR, paths[0])
+}
+
+// TestGetModulePaths_NotModule tests scanning non-module DIR
+// TestGetModulePaths_NotModule 测试扫描非模块目录
+func TestGetModulePaths_NotModule(t *testing.T) {
+	tempDIR := rese.V1(os.MkdirTemp("", "test-not-module-*"))
+	defer must.Done(os.RemoveAll(tempDIR))
+
+	paths := GetModulePaths(tempDIR, WithCurrentProject())
+	require.Empty(t, paths)
+}
+
+// TestGetModulePaths_WithCurrentPackage tests current package inclusion
+// TestGetModulePaths_WithCurrentPackage 测试当前包包含
+func TestGetModulePaths_WithCurrentPackage(t *testing.T) {
+	pkgPath := runpath.PARENT.Path()
+
+	paths := GetModulePaths(pkgPath, WithCurrentPackage(), ScanDeep(), SkipNoGo())
+	t.Log("paths:", neatjsons.S(paths))
+
+	require.NotEmpty(t, paths)
+	require.Contains(t, paths, pkgPath)
+}
+
+// =====================================================
+// Test Helpers
+// 测试辅助函数
+// =====================================================
+
+// setupTestProject creates temp test project structure
+// Returns temp DIR with main project and empty submodule
 //
-// setupTestGoProject 创建临时测试项目结构
-// 返回带主项目和子模块项目的临时 DIR 路径
-func setupTestGoProject(t *testing.T) string {
+// setupTestProject 创建临时测试项目结构
+// 返回带主项目和空子模块的临时 DIR
+func setupTestProject(t *testing.T) string {
 	tempDIR := rese.V1(os.MkdirTemp("", "test-workspath-*"))
 
-	// Create main project with go.mod and go files
+	// Main project with go.mod and .go files
+	// 主项目带 go.mod 和 .go 文件
 	must.Done(os.WriteFile(filepath.Join(tempDIR, "go.mod"), []byte("module test\n\ngo 1.22.8\n"), 0644))
 	must.Done(os.WriteFile(filepath.Join(tempDIR, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644))
 
-	// Create a submodule DIR with go.mod but no go files
+	// Submodule with go.mod but no .go files
+	// 子模块带 go.mod 但无 .go 文件
 	subDIR := filepath.Join(tempDIR, "submodule")
 	must.Done(os.MkdirAll(subDIR, 0755))
 	must.Done(os.WriteFile(filepath.Join(subDIR, "go.mod"), []byte("module test/sub\n\ngo 1.22.8\n"), 0644))
@@ -137,11 +172,8 @@ func setupTestGoProject(t *testing.T) string {
 	return tempDIR
 }
 
-// cleanupTestDIR removes temp test DIR and its contents
-// Called in cleanup to ensure test completes without issues
-//
-// cleanupTestDIR 删除临时测试 DIR 及所有内容
-// 通过 defer 调用以确保测试清理
-func cleanupTestDIR(t *testing.T, tempDIR string) {
+// cleanupDIR removes temp test DIR
+// cleanupDIR 删除临时测试 DIR
+func cleanupDIR(t *testing.T, tempDIR string) {
 	must.Done(os.RemoveAll(tempDIR))
 }

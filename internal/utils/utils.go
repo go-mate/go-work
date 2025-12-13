@@ -1,10 +1,8 @@
-// Package utils: Core utilities that detect and analyze Go project paths
+// Package utils: Internal utilities that detect and analyze Go project paths
 // Traverses file system and finds Go modules
-// Used in workspath package when detecting modules
 //
 // utils: Go 项目路径发现和分析的内部工具
 // 提供遍历文件系统和查找 Go 模块的核心功能
-// 由 workspath 包用于模块发现操作
 package utils
 
 import (

@@ -1,19 +1,20 @@
 [![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/go-mate/go-work/release.yml?branch=main&label=BUILD)](https://github.com/go-mate/go-work/actions/workflows/release.yml?query=branch%3Amain)
 [![GoDoc](https://pkg.go.dev/badge/github.com/go-mate/go-work)](https://pkg.go.dev/github.com/go-mate/go-work)
 [![Coverage Status](https://img.shields.io/coveralls/github/go-mate/go-work/main.svg)](https://coveralls.io/github/go-mate/go-work?branch=main)
-[![Supported Go Versions](https://img.shields.io/badge/Go-1.22--1.25-lightgrey.svg)](https://github.com/go-mate/go-work)
+[![Supported Go Versions](https://img.shields.io/badge/Go-1.22--1.25-lightgrey.svg)](https://go.dev/)
 [![GitHub Release](https://img.shields.io/github/release/go-mate/go-work.svg)](https://github.com/go-mate/go-work/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/go-mate/go-work)](https://goreportcard.com/report/github.com/go-mate/go-work)
 
 # go-work
 
-**Auto execute commands across multiple Go modules in workspace with smart path detection**
+**List Go modules in workspace with smart path detection**
 
-go-work is a workspace management package that auto discovers Go modules in the workspace and executes commands across them. Perfect package to manage monorepos, multi-module projects, and complex Go workspaces with multiple dependencies.
+go-work is a workspace management application that auto discovers Go modules in the workspace and lists module paths and versions. Perfect fit with monorepos, multi-module projects, and complex Go workspaces.
 
 ---
 
 <!-- TEMPLATE (EN) BEGIN: LANGUAGE NAVIGATION -->
+
 ## CHINESE README
 
 [中文说明](README.zh.md)
@@ -23,8 +24,8 @@ go-work is a workspace management package that auto discovers Go modules in the 
 
 - 🔍 **Auto Discovers**: Auto discovers Go modules in the workspace
 - 🎯 **Smart Filtering**: Excludes paths without Go source files
-- 🏗️ **Flexible Options**: Configure project and submodules
-- ⚡ **Batch Execution**: Execute commands across multiple modules
+- 🏗️ **Flexible Options**: Configure project and submodules scanning
+- 📋 **JSON Output**: Clean JSON format output
 - 🏢 **Monorepo Support**: Perfect fit with monorepo architecture
 
 ## Installation
@@ -35,52 +36,92 @@ go install github.com/go-mate/go-work/cmd/go-work@latest
 
 ## Usage
 
-### Basic Usage
+### List Module Paths
 
 ```bash
-# Auto run go mod tidy across Go modules
-cd awesome-path && go-work exec -c="go mod tidy -e"
+# List all Go modules in current workspace
+cd awesome-path && go-work
+```
 
-# Auto check git status in each module with debug output
-cd awesome-path && go-work exec -c="git status" --debug
+Output:
+```json
+[
+  {
+    "path": "/Users/admin/awesome-path",
+    "module": "github.com/example/awesome"
+  }
+]
+```
 
-# Auto build each module
-cd awesome-path && go-work exec -c="go build ./..."
+### List Module Versions
 
-# Auto run tests across modules
-cd awesome-path && go-work exec -c="go test ./..."
+```bash
+# List Go versions used in each module
+cd awesome-path && go-work version
+```
 
-# Run linting across modules
-cd awesome-path && go-work exec -c="golangci-lint run"
+Output:
+```json
+[
+  {
+    "path": "/Users/admin/awesome-path",
+    "module": "github.com/example/awesome",
+    "version": "1.22.8"
+  }
+]
 ```
 
 ## Command Line Options
 
 ```
 Usage:
-  go-work exec [flags]
+  go-work [command]
+
+Available Commands:
+  version     List Go versions used in each module
+  help        Help about any command
 
 Flags:
-  -c, --command string   command to run in each module path
-      --debug            enable debug mode
-  -h, --help             show help message
+  -h, --help  help for go-work
+```
+
+## Package Usage
+
+```go
+import "github.com/go-mate/go-work/workspath"
+
+// Get project root path
+root, ok := workspath.GetProjectRoot("/path/to/sub")
+
+// Get project path with details
+info, ok := workspath.GetProjectPath("/path/to/sub")
+// info.Root = "/path/to/project"
+// info.SubPath = "sub"
+
+// Scan modules with options
+paths := workspath.GetModulePaths(
+    "/path/to/workspace",
+    workspath.WithCurrentProject(),
+    workspath.ScanDeep(),
+    workspath.SkipNoGo(),
+)
 ```
 
 <!-- TEMPLATE (EN) BEGIN: STANDARD PROJECT FOOTER -->
-<!-- VERSION 2025-09-26 07:39:27.188023 +0000 UTC -->
+<!-- VERSION 2025-11-25 03:52:28.131064 +0000 UTC -->
 
 ## 📄 License
 
-MIT License. See [LICENSE](LICENSE).
+MIT License - see [LICENSE](LICENSE).
 
 ---
 
-## 🤝 Contributing
+## 💬 Contact & Feedback
 
 Contributions are welcome! Report bugs, suggest features, and contribute code:
 
-- 🐛 **Found a mistake?** Open an issue on GitHub with reproduction steps
-- 💡 **Have a feature idea?** Create an issue to discuss the suggestion
+- 🐛 **Mistake reports?** Open an issue on GitHub with reproduction steps
+- 💡 **Fresh ideas?** Create an issue to discuss
 - 📖 **Documentation confusing?** Report it so we can improve
 - 🚀 **Need new features?** Share the use cases to help us understand requirements
 - ⚡ **Performance issue?** Help us optimize through reporting slow operations
@@ -101,7 +142,7 @@ New code contributions, follow this process:
 4. **Branch**: Create a feature branch (`git checkout -b feature/xxx`).
 5. **Code**: Implement the changes with comprehensive tests
 6. **Testing**: (Golang project) Ensure tests pass (`go test ./...`) and follow Go code style conventions
-7. **Documentation**: Update documentation to support client-facing changes and use significant commit messages
+7. **Documentation**: Update documentation to support client-facing changes
 8. **Stage**: Stage changes (`git add .`)
 9. **Commit**: Commit changes (`git commit -m "Add feature xxx"`) ensuring backward compatible code
 10. **Push**: Push to the branch (`git push origin feature/xxx`).
@@ -130,4 +171,4 @@ Welcome to contribute to this project via submitting merge requests and reportin
 
 ## GitHub Stars
 
-[![starring](https://starchart.cc/go-mate/go-work.svg?variant=adaptive)](https://starchart.cc/go-mate/go-work)
+[![Stargazers](https://starchart.cc/go-mate/go-work.svg?variant=adaptive)](https://starchart.cc/go-mate/go-work)
